@@ -1,15 +1,25 @@
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-const isProtectedRoute = createRouteMatcher(['/(.*)']);
+// 1. Definimos qué rutas NO necesitan estar logueado para entrar
+const isPublicRoute = createRouteMatcher([
+  '/sign-in(.*)', 
+  '/sign-up(.*)', 
+  '/',             // El Home es público para ver los partidos
+  '/api/webhooks(.*)' // Por si después agregás pagos o webhooks
+]);
 
-// 1. Agregamos el "async" antes de (auth, req)
-export default clerkMiddleware(async (auth, req) => {
-  if (isProtectedRoute(req)) {
-    // 2. Le sacamos los paréntesis a auth y le ponemos "await"
+export default clerkMiddleware(async (auth, request) => {
+  // 2. Si la ruta NO es pública, protegela
+  if (!isPublicRoute(request)) {
     await auth.protect();
   }
 });
 
 export const config = {
-  matcher: ["/((?!.*\\..*|_next).*)", "/", "/(api|trpc)(.*)"],
+  matcher: [
+    // Ignora archivos internos de Next.js y archivos estáticos (imágenes, etc.)
+    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    // Siempre ejecuta para las rutas de API
+    '/(api|trpc)(.*)',
+  ],
 };
