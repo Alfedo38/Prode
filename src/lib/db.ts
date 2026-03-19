@@ -5,17 +5,18 @@ import pg from 'pg';
 
 const connectionString = process.env.DATABASE_URL;
 
-// Configuramos el pool con una opción de SSL más directa
+// Configuramos el pool con la máxima compatibilidad para Vercel/Supabase
 const pool = new pg.Pool({ 
   connectionString,
   ssl: {
-    rejectUnauthorized: false
-  }
+    rejectUnauthorized: false // Esto saltea el error de certificado
+  },
+  max: 10, // Limitar conexiones para no saturar Supabase
 });
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
-// Usamos el 'as any' para evitar el lío de tipos de nuevo
+// Usamos 'as any' para evitar el conflicto de versiones de tipos que vimos antes
 const adapter = new PrismaPg(pool as any);
 
 export const db = globalForPrisma.prisma || new PrismaClient({ adapter });
