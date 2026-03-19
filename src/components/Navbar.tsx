@@ -38,7 +38,7 @@ export default function Navbar() {
           
           {/* Foto de Perfil */}
           <div className="ml-2 pl-6 border-l border-slate-800">
-            <UserButton afterSignOutUrl="/" />
+            <UserButton />
           </div>
         </div>
 
