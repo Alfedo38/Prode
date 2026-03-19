@@ -1,6 +1,7 @@
 // src/app/ranking/page.tsx
 import db from "@/lib/db";
 import { clerkClient } from "@clerk/nextjs/server";
+export const dynamic = 'force-dynamic';
 
 export default async function RankingPage() {
   const rankings = await db.prediction.groupBy({
