@@ -1,28 +1,21 @@
 // src/lib/db.ts
-import { PrismaClient } from '@prisma/client'
-import { Pool } from 'pg'
-import { PrismaPg } from '@prisma/adapter-pg'
+import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import pg from 'pg';
 
-const prismaClientSingleton = () => {
-  // 1. Tomamos la URL del .env
-  const connectionString = process.env.DATABASE_URL;
+// 1. Configuramos el pool de conexiones
+const connectionString = process.env.DATABASE_URL;
+const pool = new pg.Pool({ connectionString });
 
-  // 2. Creamos un "Pool" de conexiones nativo de Postgres
-  const pool = new Pool({ connectionString });
+// 2. Singleton para evitar que Next.js cree mil conexiones en desarrollo
+const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
-  // 3. Lo envolvemos en el adaptador de Prisma
-  const adapter = new PrismaPg(pool);
+// 3. Creamos el adaptador (Acá metemos el 'as any' para que Vercel no se queje)
+const adapter = new PrismaPg(pool as any);
 
-  // 4. Se lo pasamos al cliente (¡Esta es la sintaxis correcta en Prisma 7!)
-  return new PrismaClient({ adapter });
-}
+// 4. Exportamos el cliente
+export const db = globalForPrisma.prisma || new PrismaClient({ adapter });
 
-declare global {
-  var prisma: undefined | ReturnType<typeof prismaClientSingleton>
-}
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db;
 
-const db = globalThis.prisma ?? prismaClientSingleton()
-
-export default db
-
-if (process.env.NODE_ENV !== 'production') globalThis.prisma = db
+export default db;
