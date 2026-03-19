@@ -1,0 +1,69 @@
+# =========================
+# DEPENDENCIAS NODE / NEXT.JS
+# =========================
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+
+# Next.js build output
+.next/
+out/
+build/
+
+# =========================
+# DEPENDENCIAS PYTHON
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Entornos virtuales (por si stats-api es uno)
+venv/
+.venv/
+env/
+.env_python/
+
+# =========================
+# VARIABLES DE ENTORNO Y SECRETOS (¡CRÍTICO!)
+# =========================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+
+# =========================
+# LOGS Y ARCHIVOS LOCALES
+# =========================
+*.log
+diario.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# =========================
+# ARCHIVOS DEL SISTEMA OPERATIVO
+# =========================
+.DS_Store
+Thumbs.db
+# =========================
+# VERCEL / DESPLIEGUE
+# =========================
+.vercel
+
+# =========================
+# PRISMA (LOCAL DATABASE)
+# =========================
+*.db
+*.db-journal
+
+# =========================
+# IDE / CONFIGURACIÓN PERSONAL
+# =========================
+.vscode/
+.idea/
