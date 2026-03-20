@@ -58,10 +58,11 @@ export async function GET(request: Request) {
       }
 
       // 6. Guardamos el nuevo puntaje total en la base de datos para ese usuario
-      await db.fantasyTeam.update({
-        where: { id: team.id },
-        data: { totalPoints: totalTeamPoints }
-      });
+    await db.fantasyTeam.update({
+          where: { id: team.id },
+          // ✅ ACÁ ESTABA EL ERROR: Cambiamos totalPoints por pointsEarned
+          data: { pointsEarned: totalTeamPoints } 
+        });
 
       equiposProcesados++;
     }
