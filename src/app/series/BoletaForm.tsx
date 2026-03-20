@@ -7,7 +7,7 @@ import { savePrediction } from "@/app/actions";
 const formatDate = (dateString: string) => {
   if (!dateString) return "TBA";
   const date = new Date(dateString);
-  return date.toLocaleDateString("es-AR", { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase();
+  return date.toLocaleDateString("es-AR", { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' }).toUpperCase();
 };
 
 export default function BoletaForm({ seriesList, userPredictions }: { seriesList: any[], userPredictions: any[] }) {
@@ -18,7 +18,6 @@ export default function BoletaForm({ seriesList, userPredictions }: { seriesList
     seriesList.forEach(s => {
       const p = userPredictions.find(prev => prev.series?.mlbSeriesId === s.id || prev.seriesId === s.id);
       state.picks[s.id] = p?.dailyPicks ? p.dailyPicks.split(',') : ["", "", ""];
-      // Ahora pitchers guardará ["SI", "NO", "SI"] por ejemplo
       state.pitchers[s.id] = p?.pitcherPicks ? p.pitcherPicks.split(',') : ["", "", ""];
     });
     return state;
@@ -78,6 +77,9 @@ export default function BoletaForm({ seriesList, userPredictions }: { seriesList
         const res = calculate(s.id, s.awayTeam, s.homeTeam);
         const isOpen = expandedId === s.id;
         const isSavedInDB = userPredictions.some(p => p.series?.mlbSeriesId === s.id || p.seriesId === s.id);
+        
+        // 🚨 LÓGICA ANTI-TRAMPA: ¿Ya empezó el primer partido?
+        const isLocked = new Date() > new Date(s.firstGameTime);
 
         return (
           <div key={s.id} className={`bg-slate-900 border rounded-[2.5rem] overflow-hidden transition-all duration-300 shadow-2xl ${isSavedInDB ? 'border-blue-500/40' : 'border-slate-800'}`}>
@@ -86,20 +88,67 @@ export default function BoletaForm({ seriesList, userPredictions }: { seriesList
               onClick={() => setExpandedId(isOpen ? null : s.id)}
               className="p-4 flex flex-col md:flex-row items-center gap-4 cursor-pointer hover:bg-slate-800/40 transition-colors"
             >
-              <div className="flex-1 flex items-center justify-between px-8 bg-slate-950/50 rounded-full h-24 border border-slate-800/30">
-                <div className="text-center flex-1 min-w-0">
-                  <p className="text-lg md:text-xl font-black uppercase text-white truncate">{s.awayTeam}</p>
-                  <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mt-1">Visitante</p>
-                </div>
-                <span className="text-slate-800 font-black italic text-xl px-4 shrink-0">VS</span>
-                <div className="text-center flex-1 min-w-0">
-                  <p className="text-lg md:text-xl font-black uppercase text-blue-500 truncate">{s.homeTeam}</p>
-                  <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mt-1">Local</p>
-                </div>
-                <span className={`ml-6 text-slate-600 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>▼</span>
-              </div>
+              <div className="flex-1 flex flex-col justify-center px-8 bg-slate-950/50 rounded-3xl h-32 border border-slate-800/30 relative">
+                
+                {/* Etiqueta de Candado si ya empezó */}
+                {isLocked && (
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-red-500/20 text-red-500 text-[8px] font-black px-3 py-1 rounded-b-lg uppercase tracking-widest border-x border-b border-red-500/30">
+                    🔒 Apuestas Cerradas
+                  </div>
+                )}
 
-              <div className={`w-full md:w-64 h-24 rounded-[1.8rem] flex flex-col items-center justify-center transition-all duration-500 relative overflow-hidden ${res ? 'bg-blue-600 shadow-[0_0_25px_rgba(37,99,235,0.3)]' : 'bg-slate-800/50'}`}>
+                <div className="flex items-center justify-between w-full mt-2">
+                  <div className="text-center flex-1 min-w-0">
+                    <p className="text-lg md:text-xl font-black uppercase text-white truncate">{s.awayTeam}</p>
+                    <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mt-1">Visitante</p>
+                  </div>
+                  
+                  <div className="flex flex-col items-center justify-center px-4 shrink-0">
+                    <span className="text-slate-800 font-black italic text-xl">VS</span>
+                  </div>
+
+                  <div className="text-center flex-1 min-w-0">
+                    <p className="text-lg md:text-xl font-black uppercase text-blue-500 truncate">{s.homeTeam}</p>
+                    <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mt-1">Local</p>
+                  </div>
+                </div>
+
+              {/* 📊 Pizarra de Estadísticas REALES */}
+                <div className="mt-3 pt-3 border-t border-slate-800/50 flex justify-center gap-6">
+                  
+                  <div className="text-center">
+                    <p className="text-[8px] text-slate-500 uppercase tracking-widest font-black mb-1">
+                      Récord Temp.
+                    </p>
+                    <div className="flex items-center gap-2 text-xs font-bold">
+                      <span className="text-slate-300 bg-slate-800/50 px-2 py-0.5 rounded">
+                        V: {s.awayRecord?.wins || 0}-{s.awayRecord?.losses || 0}
+                      </span>
+                      <span className="text-slate-600 font-black">|</span>
+                      <span className="text-blue-400 bg-blue-900/20 px-2 py-0.5 rounded">
+                        L: {s.homeRecord?.wins || 0}-{s.homeRecord?.losses || 0}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="text-center">
+                    <p className="text-[8px] text-slate-500 uppercase tracking-widest font-black mb-1">
+                      Efectividad (PCT)
+                    </p>
+                    <div className="flex items-center gap-2 text-xs font-bold">
+                      <span className="text-slate-300">
+                        {s.awayRecord?.pct || ".000"}
+                      </span>
+                      <span className="text-slate-600 font-black">vs</span>
+                      <span className="text-blue-400">
+                        {s.homeRecord?.pct || ".000"}
+                      </span>
+                    </div>
+                  </div>
+
+                </div>
+
+              <div className={`w-full md:w-64 h-32 rounded-[2rem] flex flex-col items-center justify-center transition-all duration-500 relative overflow-hidden ${res ? 'bg-blue-600 shadow-[0_0_25px_rgba(37,99,235,0.3)]' : 'bg-slate-800/50'}`}>
                 {isSavedInDB && (
                   <div className="absolute top-0 right-0 bg-blue-400 text-[8px] font-black px-3 py-1 rounded-bl-xl uppercase text-blue-900 shadow-sm z-10">
                     Guardado
@@ -107,7 +156,7 @@ export default function BoletaForm({ seriesList, userPredictions }: { seriesList
                 )}
                 {res ? (
                   <>
-                    <p className="text-[10px] font-black uppercase text-blue-200 mb-0.5 tracking-[0.2em]">Gana la Serie</p>
+                    <p className="text-[10px] font-black uppercase text-blue-200 mb-0.5 tracking-[0.2em]">Pronóstico Serie</p>
                     <p className="text-sm md:text-md font-black uppercase italic text-white leading-tight truncate px-4">{res.winner}</p>
                     <p className="text-3xl font-black text-white mt-0.5 drop-shadow-md">{res.score}</p>
                   </>
@@ -123,65 +172,71 @@ export default function BoletaForm({ seriesList, userPredictions }: { seriesList
             {isOpen && (
               <div className="p-6 bg-slate-950/50 border-t border-slate-800/50 animate-in fade-in slide-in-from-top-4 duration-500">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {[0, 1, 2].map((idx) => (
-                    <div key={idx} className="bg-slate-900 border border-slate-800/50 rounded-[2rem] p-6 space-y-5 shadow-inner">
-                      
-                      <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-                        <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em]">Juego {idx + 1}</p>
-                        <p className="text-[9px] font-bold text-slate-500 uppercase">
-                          {formatDate(s.games && s.games[idx] ? s.games[idx].gameDate : s.firstGameTime)}
-                        </p>
-                      </div>
-                      
-                      {/* Votación V/L */}
-                      <div className="flex gap-3 justify-center">
-                        {["V", "L"].map(v => (
-                          <button
-                            key={v}
-                            onClick={(e) => { e.stopPropagation(); handlePick(s.id, idx, v); }}
-                            className={`w-14 h-14 flex items-center justify-center rounded-full text-sm font-black transition-all duration-300 ${formData.picks[s.id][idx] === v ? 'bg-blue-600 shadow-[0_0_20px_rgba(37,99,235,0.5)] text-white scale-110' : 'bg-slate-950 text-slate-700 hover:text-slate-300 border border-slate-800'}`}
-                          >
-                            {v}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* NUEVO: Botones SI / NO en lugar de la lista desplegable */}
-                      <div className="space-y-3 pt-4 border-t border-slate-800/50">
-                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">
-                          ¿El abridor se lleva la victoria?
-                        </p>
-                        <div className="flex gap-2 justify-center">
-                          {["SI", "NO"].map(opt => (
+                  {[0, 1, 2].map((idx) => {
+                    // Por ahora bloqueamos toda la serie si el juego 1 arrancó. 
+                    // En el futuro podemos bloquear juego por juego.
+                    return (
+                      <div key={idx} className="bg-slate-900 border border-slate-800/50 rounded-[2rem] p-6 space-y-5 shadow-inner relative">
+                        {isLocked && <div className="absolute inset-0 bg-slate-950/50 z-10 rounded-[2rem]"></div>}
+                        
+                        <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                          <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em]">Juego {idx + 1}</p>
+                          <p className="text-[9px] font-bold text-slate-500 uppercase">
+                            {formatDate(s.games && s.games[idx] ? s.games[idx].gameDate : s.firstGameTime)}
+                          </p>
+                        </div>
+                        
+                        {/* Votación V/L */}
+                        <div className="flex gap-3 justify-center relative z-20">
+                          {["V", "L"].map(v => (
                             <button
-                              key={opt}
-                              onClick={(e) => { e.stopPropagation(); handlePitcher(s.id, idx, opt); }}
-                              className={`px-6 py-2 rounded-xl text-xs font-black transition-all duration-300 ${
-                                formData.pitchers[s.id][idx] === opt 
-                                  ? 'bg-amber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.4)] scale-105' 
-                                  : 'bg-slate-950 text-slate-600 hover:text-slate-300 border border-slate-800'
-                              }`}
+                              key={v}
+                              disabled={isLocked}
+                              onClick={(e) => { e.stopPropagation(); handlePick(s.id, idx, v); }}
+                              className={`w-14 h-14 flex items-center justify-center rounded-full text-sm font-black transition-all duration-300 disabled:cursor-not-allowed ${formData.picks[s.id][idx] === v ? 'bg-blue-600 shadow-[0_0_20px_rgba(37,99,235,0.5)] text-white scale-110' : 'bg-slate-950 text-slate-700 hover:text-slate-300 border border-slate-800 disabled:opacity-50'}`}
                             >
-                              {opt}
+                              {v}
                             </button>
                           ))}
                         </div>
-                        <p className="text-[8px] text-amber-500/80 font-black uppercase text-center leading-tight">
-                          +3 Puntos si acertás
-                        </p>
-                      </div>
 
-                    </div>
-                  ))}
+                        {/* Botones SI / NO */}
+                        <div className="space-y-3 pt-4 border-t border-slate-800/50 relative z-20">
+                          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">
+                            ¿El abridor se lleva la victoria?
+                          </p>
+                          <div className="flex gap-2 justify-center">
+                            {["SI", "NO"].map(opt => (
+                              <button
+                                key={opt}
+                                disabled={isLocked}
+                                onClick={(e) => { e.stopPropagation(); handlePitcher(s.id, idx, opt); }}
+                                className={`px-6 py-2 rounded-xl text-xs font-black transition-all duration-300 disabled:cursor-not-allowed ${
+                                  formData.pitchers[s.id][idx] === opt 
+                                    ? 'bg-amber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.4)] scale-105' 
+                                    : 'bg-slate-950 text-slate-600 hover:text-slate-300 border border-slate-800 disabled:opacity-50'
+                                }`}
+                              >
+                                {opt}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                      </div>
+                    )
+                  })}
                 </div>
 
-                <button 
-                  onClick={() => handleSave(s)}
-                  disabled={isSaving === s.id}
-                  className="w-full mt-8 py-5 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-[0.4em] text-[10px] rounded-2xl shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3"
-                >
-                  {isSaving === s.id ? "Procesando..." : "✓ Confirmar Pronóstico"}
-                </button>
+                {!isLocked && (
+                  <button 
+                    onClick={() => handleSave(s)}
+                    disabled={isSaving === s.id}
+                    className="w-full mt-8 py-5 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-[0.4em] text-[10px] rounded-2xl shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3"
+                  >
+                    {isSaving === s.id ? "Procesando..." : "✓ Confirmar Pronóstico"}
+                  </button>
+                )}
               </div>
             )}
           </div>

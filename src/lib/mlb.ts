@@ -32,7 +32,18 @@ export async function fetchWeekendSeries() {
             awayAbbr: game.teams.away.team.abbreviation,
             firstGameTime: game.gameDate, 
             gameCount: 0,
-            games: []
+            games: [],
+            // 📊 ACA AGREGAMOS LOS RÉCORDS REALES DE LA API
+            homeRecord: {
+              wins: game.teams.home.leagueRecord?.wins || 0,
+              losses: game.teams.home.leagueRecord?.losses || 0,
+              pct: game.teams.home.leagueRecord?.pct || ".000"
+            },
+            awayRecord: {
+              wins: game.teams.away.leagueRecord?.wins || 0,
+              losses: game.teams.away.leagueRecord?.losses || 0,
+              pct: game.teams.away.leagueRecord?.pct || ".000"
+            }
           });
         }
 

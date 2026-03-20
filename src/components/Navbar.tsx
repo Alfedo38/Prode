@@ -12,7 +12,8 @@ export default function Navbar() {
     { name: "Prode", href: "/series" },
   { name: "Ranking", href: "/ranking" },
     { name: "Fantasy", href: "/fantasy" },
-    { name: "Mi Perfil", href: "/perfil" }, // <-- AGREGÁ ESTA LÍNEA
+    { name: "Mi Perfil", href: "/perfil" },
+    { name: "Reglas", href: "/reglas" }
   ];
 
   return (

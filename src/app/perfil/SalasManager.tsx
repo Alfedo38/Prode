@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { createLeague, joinLeague } from "@/app/actions";
+import Link from "next/link"; // ✅ Importamos el componente Link
 
 export default function SalasManager({ misSalas }: { misSalas: any[] }) {
   const [loading, setLoading] = useState(false);
@@ -51,16 +52,18 @@ export default function SalasManager({ misSalas }: { misSalas: any[] }) {
         <div className="space-y-3 mb-6">
           {misSalas.length > 0 ? (
             misSalas.map((sala) => (
-              <div key={sala.id} className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800/50 hover:border-blue-500/30 transition-colors">
-                <div>
-                  <p className="font-bold text-sm text-slate-200 uppercase">{sala.name}</p>
-                  <p className="text-[9px] text-slate-500 uppercase tracking-widest mt-0.5 font-black">
-                    Código: <span className="text-blue-400">{sala.inviteCode}</span>
-                  </p>
+              // ✅ Envolvemos la tarjeta con el Link hacia la ruta dinámica
+              <Link href={`/salas/${sala.id}`} key={sala.id} className="block">
+                <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800/50 hover:border-blue-500/50 hover:bg-slate-900 transition-all cursor-pointer group">
+                  <div>
+                    <p className="font-bold text-sm text-slate-200 uppercase group-hover:text-blue-400 transition-colors">{sala.name}</p>
+                    <p className="text-[9px] text-slate-500 uppercase tracking-widest mt-0.5 font-black">
+                      Código: <span className="text-slate-400">{sala.inviteCode}</span>
+                    </p>
+                  </div>
+                  <span className="text-blue-500 text-sm font-black group-hover:translate-x-1 transition-transform">→</span>
                 </div>
-                {/* Acá en el futuro podemos poner un link para ver el ranking interno de la sala */}
-                <span className="text-blue-500 text-sm font-black cursor-pointer">→</span>
-              </div>
+              </Link>
             ))
           ) : (
             <p className="text-center text-xs font-bold text-slate-500 py-2 uppercase tracking-widest">
