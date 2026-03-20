@@ -49,10 +49,9 @@ export default function Navbar() {
           })}
         </div>
 
-        {/* Perfil del Usuario (Clerk) */}
+   {/* Perfil del Usuario (Clerk) */}
         <div className="flex items-center gap-4">
           <UserButton 
-            afterSignOutUrl="/" 
             appearance={{
               elements: {
                 avatarBox: "w-10 h-10 border-2 border-slate-800 shadow-lg"
@@ -60,7 +59,6 @@ export default function Navbar() {
             }}
           />
         </div>
-
       </div>
 
       {/* Menú Mobile (Versión simple abajo del logo en celulares) */}
