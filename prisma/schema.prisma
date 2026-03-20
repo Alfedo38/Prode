@@ -9,17 +9,17 @@ datasource db {
 }
 
 model Series {
-  id             String       @id @default(cuid())
-  mlbSeriesId    String       @unique 
-  homeTeam       String
-  awayTeam       String
-  startDate      DateTime     
-  endDate        DateTime     
-  firstGameTime  DateTime     
-  status         String       @default("UPCOMING") 
-  winnerId       String?      
-  score          String?      
-  predictions    Prediction[]
+  id            String       @id @default(cuid())
+  mlbSeriesId   String       @unique 
+  homeTeam      String
+  awayTeam      String
+  startDate     DateTime     
+  endDate       DateTime     
+  firstGameTime DateTime     
+  status        String       @default("UPCOMING") 
+  winnerId      String?      
+  score         String?      
+  predictions   Prediction[]
 }
 
 model Prediction {
@@ -29,7 +29,7 @@ model Prediction {
   predictedWinnerId String   
   predictedScore    String   
   dailyPicks        String?  // Ej: "V,L,L"
-  pitcherPicks      String?  // ✅ NUEVO: Ej: "Mitch Keller,Sean Manaea,Bailey Falter"
+  pitcherPicks      String?  // ✅ Ej: "SI,NO,SI" (Abridor gana)
   totalRuns         Int      @default(0) 
   pointsEarned      Int      @default(0) 
   createdAt         DateTime @default(now())
@@ -44,4 +44,30 @@ model FantasyTeam {
   playerNames  String   
   pointsEarned Int      @default(0) 
   updatedAt    DateTime @updatedAt
+}
+
+// ==========================================
+// 🏆 NUEVO: SALAS DE AMIGOS (LIGAS PRIVADAS)
+// ==========================================
+
+model League {
+  id          String         @id @default(cuid())
+  name        String         // Ej: "Oficina Béisbol"
+  inviteCode  String         @unique // Código secreto único, Ej: "PRODE123"
+  ownerId     String         // El userId (Clerk) del creador
+  createdAt   DateTime       @default(now())
+
+  members     LeagueMember[] // Relación con los jugadores adentro
+}
+
+model LeagueMember {
+  id          String   @id @default(cuid())
+  leagueId    String
+  userId      String   // El userId (Clerk) del jugador que se unió
+  joinedAt    DateTime @default(now())
+
+  league      League   @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  // 🛡️ Regla de oro: Un jugador no puede unirse dos veces a la misma sala
+  @@unique([leagueId, userId])
 }
