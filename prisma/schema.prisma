@@ -6,22 +6,20 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  // Recordá que la URL ahora la maneja el archivo prisma.config.ts 
-  // debido a la versión 7.5 de Prisma que estás usando.
 }
 
 model Series {
-  id            String       @id @default(cuid())
-  mlbSeriesId   String       @unique // Identificador único (ej: "147-110-2026-03-26")
-  homeTeam      String
-  awayTeam      String
-  startDate     DateTime     // Fecha general de inicio
-  endDate       DateTime     // Fecha general de fin
-  firstGameTime DateTime     // El horario exacto del J1 (para cerrar el prode)
-  status        String       @default("UPCOMING") // UPCOMING, LIVE, FINISHED
-  winnerId      String?      // Quién ganó la serie finalmente
-  score         String?      // Resultado real final (ej: "2-1")
-  predictions   Prediction[]
+  id             String       @id @default(cuid())
+  mlbSeriesId    String       @unique 
+  homeTeam       String
+  awayTeam       String
+  startDate      DateTime     
+  endDate        DateTime     
+  firstGameTime  DateTime     
+  status         String       @default("UPCOMING") 
+  winnerId       String?      
+  score          String?      
+  predictions    Prediction[]
 }
 
 model Prediction {
@@ -30,7 +28,8 @@ model Prediction {
   seriesId          String   
   predictedWinnerId String   
   predictedScore    String   
-  dailyPicks        String?  // NUEVO: Guardará algo como "away-home-home"
+  dailyPicks        String?  // Ej: "V,L,L"
+  pitcherPicks      String?  // ✅ NUEVO: Ej: "Mitch Keller,Sean Manaea,Bailey Falter"
   totalRuns         Int      @default(0) 
   pointsEarned      Int      @default(0) 
   createdAt         DateTime @default(now())
@@ -41,8 +40,8 @@ model Prediction {
 
 model FantasyTeam {
   id           String   @id @default(cuid())
-  userId       String   @unique // Un usuario = Un equipo de Fantasy por ahora
-  playerNames  String   // Acá guardaremos los 9 nombres separados por comas (ej: "Aaron Judge,Shohei Ohtani,...")
-  pointsEarned Int      @default(0) // Los puntos que sumaron estos 9 tipos
+  userId       String   @unique 
+  playerNames  String   
+  pointsEarned Int      @default(0) 
   updatedAt    DateTime @updatedAt
 }
