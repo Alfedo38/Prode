@@ -113,7 +113,7 @@ export default function BoletaForm({ seriesList, userPredictions }: { seriesList
                   </div>
                 </div>
 
-              {/* 📊 Pizarra de Estadísticas REALES */}
+                {/* 📊 Pizarra de Estadísticas REALES */}
                 <div className="mt-3 pt-3 border-t border-slate-800/50 flex justify-center gap-6">
                   
                   <div className="text-center">
@@ -147,6 +147,7 @@ export default function BoletaForm({ seriesList, userPredictions }: { seriesList
                   </div>
 
                 </div>
+              </div>
 
               <div className={`w-full md:w-64 h-32 rounded-[2rem] flex flex-col items-center justify-center transition-all duration-500 relative overflow-hidden ${res ? 'bg-blue-600 shadow-[0_0_25px_rgba(37,99,235,0.3)]' : 'bg-slate-800/50'}`}>
                 {isSavedInDB && (
@@ -173,8 +174,6 @@ export default function BoletaForm({ seriesList, userPredictions }: { seriesList
               <div className="p-6 bg-slate-950/50 border-t border-slate-800/50 animate-in fade-in slide-in-from-top-4 duration-500">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   {[0, 1, 2].map((idx) => {
-                    // Por ahora bloqueamos toda la serie si el juego 1 arrancó. 
-                    // En el futuro podemos bloquear juego por juego.
                     return (
                       <div key={idx} className="bg-slate-900 border border-slate-800/50 rounded-[2rem] p-6 space-y-5 shadow-inner relative">
                         {isLocked && <div className="absolute inset-0 bg-slate-950/50 z-10 rounded-[2rem]"></div>}
@@ -186,7 +185,6 @@ export default function BoletaForm({ seriesList, userPredictions }: { seriesList
                           </p>
                         </div>
                         
-                        {/* Votación V/L */}
                         <div className="flex gap-3 justify-center relative z-20">
                           {["V", "L"].map(v => (
                             <button
@@ -200,7 +198,6 @@ export default function BoletaForm({ seriesList, userPredictions }: { seriesList
                           ))}
                         </div>
 
-                        {/* Botones SI / NO */}
                         <div className="space-y-3 pt-4 border-t border-slate-800/50 relative z-20">
                           <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">
                             ¿El abridor se lleva la victoria?
