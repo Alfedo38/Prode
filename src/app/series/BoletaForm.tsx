@@ -10,7 +10,7 @@ const formatDate = (dateString: string) => {
   return date.toLocaleDateString("es-AR", { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase();
 };
 
-export default function BoletaForm({ seriesList, userPredictions, pitchersBySeries }: { seriesList: any[], userPredictions: any[], pitchersBySeries: any }) {
+export default function BoletaForm({ seriesList, userPredictions }: { seriesList: any[], userPredictions: any[] }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const buildInitialState = () => {
@@ -18,6 +18,7 @@ export default function BoletaForm({ seriesList, userPredictions, pitchersBySeri
     seriesList.forEach(s => {
       const p = userPredictions.find(prev => prev.series?.mlbSeriesId === s.id || prev.seriesId === s.id);
       state.picks[s.id] = p?.dailyPicks ? p.dailyPicks.split(',') : ["", "", ""];
+      // Ahora pitchers guardará ["SI", "NO", "SI"] por ejemplo
       state.pitchers[s.id] = p?.pitcherPicks ? p.pitcherPicks.split(',') : ["", "", ""];
     });
     return state;
@@ -81,7 +82,6 @@ export default function BoletaForm({ seriesList, userPredictions, pitchersBySeri
         return (
           <div key={s.id} className={`bg-slate-900 border rounded-[2.5rem] overflow-hidden transition-all duration-300 shadow-2xl ${isSavedInDB ? 'border-blue-500/40' : 'border-slate-800'}`}>
             
-            {/* --- CABECERA (SIEMPRE VISIBLE) --- */}
             <div 
               onClick={() => setExpandedId(isOpen ? null : s.id)}
               className="p-4 flex flex-col md:flex-row items-center gap-4 cursor-pointer hover:bg-slate-800/40 transition-colors"
@@ -99,16 +99,12 @@ export default function BoletaForm({ seriesList, userPredictions, pitchersBySeri
                 <span className={`ml-6 text-slate-600 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>▼</span>
               </div>
 
-              {/* CARD AZUL RESULTADO (¡Restaurada a su antigua gloria!) */}
               <div className={`w-full md:w-64 h-24 rounded-[1.8rem] flex flex-col items-center justify-center transition-all duration-500 relative overflow-hidden ${res ? 'bg-blue-600 shadow-[0_0_25px_rgba(37,99,235,0.3)]' : 'bg-slate-800/50'}`}>
-                
-                {/* Cartelito de guardado si está en la base de datos */}
                 {isSavedInDB && (
                   <div className="absolute top-0 right-0 bg-blue-400 text-[8px] font-black px-3 py-1 rounded-bl-xl uppercase text-blue-900 shadow-sm z-10">
                     Guardado
                   </div>
                 )}
-                
                 {res ? (
                   <>
                     <p className="text-[10px] font-black uppercase text-blue-200 mb-0.5 tracking-[0.2em]">Gana la Serie</p>
@@ -124,7 +120,6 @@ export default function BoletaForm({ seriesList, userPredictions, pitchersBySeri
               </div>
             </div>
 
-            {/* --- CONTENIDO DESPLEGABLE (LOS 3 PARTIDOS) --- */}
             {isOpen && (
               <div className="p-6 bg-slate-950/50 border-t border-slate-800/50 animate-in fade-in slide-in-from-top-4 duration-500">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -151,24 +146,28 @@ export default function BoletaForm({ seriesList, userPredictions, pitchersBySeri
                         ))}
                       </div>
 
-                      {/* Selector de Pitcher */}
-                      <div className="space-y-3 pt-2">
-                        <div className="flex flex-col items-center">
-                          <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-2">Pitcher Ganador Previsto</p>
-                          <select 
-                            onClick={(e) => e.stopPropagation()}
-                            value={formData.pitchers[s.id][idx] || ""}
-                            onChange={(e) => handlePitcher(s.id, idx, e.target.value)}
-                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-[11px] font-bold text-slate-300 outline-none focus:border-blue-500 transition-all cursor-pointer appearance-none text-center"
-                          >
-                            <option value="">-- Seleccionar Lanzador --</option>
-                            {pitchersBySeries[s.id] && pitchersBySeries[s.id].map((p: any) => (
-                              <option key={p.id} value={p.name}>{p.name} ({p.teamAbbr})</option>
-                            ))}
-                          </select>
+                      {/* NUEVO: Botones SI / NO en lugar de la lista desplegable */}
+                      <div className="space-y-3 pt-4 border-t border-slate-800/50">
+                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">
+                          ¿El abridor se lleva la victoria?
+                        </p>
+                        <div className="flex gap-2 justify-center">
+                          {["SI", "NO"].map(opt => (
+                            <button
+                              key={opt}
+                              onClick={(e) => { e.stopPropagation(); handlePitcher(s.id, idx, opt); }}
+                              className={`px-6 py-2 rounded-xl text-xs font-black transition-all duration-300 ${
+                                formData.pitchers[s.id][idx] === opt 
+                                  ? 'bg-amber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.4)] scale-105' 
+                                  : 'bg-slate-950 text-slate-600 hover:text-slate-300 border border-slate-800'
+                              }`}
+                            >
+                              {opt}
+                            </button>
+                          ))}
                         </div>
                         <p className="text-[8px] text-amber-500/80 font-black uppercase text-center leading-tight">
-                          ⚠️ Debe ser el abridor oficial (+3 pts)
+                          +3 Puntos si acertás
                         </p>
                       </div>
 
@@ -176,7 +175,6 @@ export default function BoletaForm({ seriesList, userPredictions, pitchersBySeri
                   ))}
                 </div>
 
-                {/* BOTÓN DE GUARDAR */}
                 <button 
                   onClick={() => handleSave(s)}
                   disabled={isSaving === s.id}

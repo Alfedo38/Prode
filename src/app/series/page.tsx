@@ -1,6 +1,5 @@
 // src/app/series/page.tsx
 import { fetchWeekendSeries } from "@/lib/mlb";
-import { getPitchersForSeries } from "@/lib/mlbFantasy"; 
 import { auth } from "@clerk/nextjs/server";
 import db from "@/lib/db";
 import Link from "next/link";
@@ -8,19 +7,8 @@ import BoletaForm from "./BoletaForm";
 
 export default async function SeriesPage() {
   const seriesList = await fetchWeekendSeries();
-  
-  // Cargamos los pitchers de cada serie de forma segura
-  const pitchersBySeries: any = {};
- for (const s of seriesList) {
-    if (s.homeId && s.awayId) {
-      // ✅ AHORA LE PASAMOS LAS 4 COSAS: IDs y Siglas (Abbr)
-      pitchersBySeries[s.id] = await getPitchersForSeries(s.homeId, s.awayId, s.homeAbbr, s.awayAbbr);
-    } else {
-      pitchersBySeries[s.id] = [];
-    }
-  }
-
   const { userId } = await auth();
+
   let userPredictions: any[] = [];
   if (userId) {
     userPredictions = await db.prediction.findMany({
@@ -44,12 +32,8 @@ export default async function SeriesPage() {
         </p>
       </div>
 
-      {/* Le pasamos la lista de pitchers a la Boleta */}
-      <BoletaForm 
-        seriesList={seriesList} 
-        userPredictions={userPredictions} 
-        pitchersBySeries={pitchersBySeries} 
-      />
+      {/* Ya no pasamos pitchersBySeries, la Boleta se maneja sola */}
+      <BoletaForm seriesList={seriesList} userPredictions={userPredictions} />
     </main>
   );
 }
