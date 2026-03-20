@@ -32,7 +32,7 @@ export async function GET(request: Request) {
       const players = team.playerNames.split(',');
       
       // Partimos del puntaje que ya tenían de días anteriores
-      let totalTeamPoints = team.totalPoints || 0; 
+     let totalTeamPoints = team.pointsEarned || 0;
 
       for (const playerString of players) {
         if (!playerString) continue;
