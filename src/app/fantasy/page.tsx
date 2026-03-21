@@ -199,7 +199,7 @@ export default function FantasyPage() {
 
         {/* --- LISTA DERECHA (MERCADO) --- */}
         <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-6 flex flex-col h-[600px] md:h-[650px] shadow-2xl">
-          <h2 className="text-2xl font-black italic uppercase mb-1 tracking-tight text-white">Mercado <span className="text-blue-500">Libre</span></h2>
+          <h2 className="text-2xl font-black italic uppercase mb-1 tracking-tight text-white">Mercado <span className="text-blue-500">De Jugadores</span></h2>
           <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6">Buscá a tu estrella</p>
           
           <select 
