@@ -1,18 +1,15 @@
 // src/lib/mlb.ts
 export async function fetchWeekendSeries() {
-  // 🚨 MODO PRUEBA: Usamos la fecha de hoy
-  const today = new Date(); 
-  const start = today.toISOString().split('T')[0];
-  
-  const endLimit = new Date(today);
-  endLimit.setDate(today.getDate() + 2); // Traemos hoy y un par de días más
+  const openingDay = new Date("2026-03-26T12:00:00Z"); 
+  const start = openingDay.toISOString().split('T')[0];
+  const endLimit = new Date(openingDay);
+  endLimit.setDate(openingDay.getDate() + 5);
   const end = endLimit.toISOString().split('T')[0];
 
-  // 🚨 MODO PRUEBA: Cambiamos gameType=R a gameType=S (Spring Training) y revalidate=0 para que no guarde caché
-  const url = `https://statsapi.mlb.com/api/v1/schedule/games/?sportId=1&startDate=${start}&endDate=${end}&gameType=S&hydrate=probablePitcher`;
+  const url = `https://statsapi.mlb.com/api/v1/schedule/games/?sportId=1&startDate=${start}&endDate=${end}&gameType=R&hydrate=probablePitcher`;
 
   try {
-    const res = await fetch(url, { next: { revalidate: 0 } });
+    const res = await fetch(url, { next: { revalidate: 3600 } });
     const data = await res.json();
     if (!data.dates) return [];
 
@@ -29,13 +26,14 @@ export async function fetchWeekendSeries() {
             mlbSeriesId: seriesKey,
             homeTeam: game.teams.home.team.name,
             awayTeam: game.teams.away.team.name,
-            homeId: game.teams.home.team.id, 
-            awayId: game.teams.away.team.id, 
+            homeId: game.teams.home.team.id, // ✅ AGREGADO
+            awayId: game.teams.away.team.id, // ✅ AGREGADO
             homeAbbr: game.teams.home.team.abbreviation,
             awayAbbr: game.teams.away.team.abbreviation,
             firstGameTime: game.gameDate, 
             gameCount: 0,
             games: [],
+            // 📊 ACA AGREGAMOS LOS RÉCORDS REALES DE LA API
             homeRecord: {
               wins: game.teams.home.leagueRecord?.wins || 0,
               losses: game.teams.home.leagueRecord?.losses || 0,
@@ -66,9 +64,8 @@ export async function fetchWeekendSeries() {
       });
     });
 
-    // 🚨 MODO PRUEBA: Quitamos el filtro de 3 partidos (.filter(s => s.gameCount === 3)) 
-    // porque en pretemporada a veces juegan solo 1 o 2 partidos seguidos.
     return Array.from(seriesMap.values())
+      .filter(s => s.gameCount === 3)
       .sort((a, b) => new Date(a.firstGameTime).getTime() - new Date(b.firstGameTime).getTime());
 
   } catch (error) {

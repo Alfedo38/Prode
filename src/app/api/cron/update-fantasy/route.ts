@@ -1,11 +1,9 @@
 // src/app/api/cron/update-fantasy/route.ts
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
-// Asumimos que vas a crear/tener una función en tu API para traer las stats del día
-import { fetchPlayerDailyStats } from "@/lib/mlbFantasy"; 
 
 export async function GET(request: Request) {
-  // 1. SEGURIDAD (La misma que en el Prode)
+  // 🔒 1. Seguridad
   const authHeader = request.headers.get('authorization');
   if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
@@ -14,55 +12,79 @@ export async function GET(request: Request) {
   try {
     console.log("🔥 Iniciando el Árbitro Automático del Fantasy...");
 
-    // 2. Traemos todos los equipos de Fantasy de la base de datos
-    // (Asegurate de que el nombre de tu tabla sea fantasyTeam o el que estés usando)
-    const allFantasyTeams = await db.fantasyTeam.findMany();
+    // 📅 2. Usamos la fecha de hoy para buscar los partidos
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0];
 
-    if (allFantasyTeams.length === 0) {
-      return NextResponse.json({ message: "No hay equipos de Fantasy armados todavía." });
+    // 🚀 3. EL TRUCO NINJA: hydrate=boxscore nos trae todas las stats del día en 1 solo llamado
+    const url = `https://statsapi.mlb.com/api/v1/schedule/games/?sportId=1&startDate=${dateStr}&endDate=${dateStr}&gameType=R&hydrate=boxscore`;
+    
+    const res = await fetch(url, { cache: 'no-store' });
+    const data = await res.json();
+
+    if (!data.dates || data.dates.length === 0) {
+      return NextResponse.json({ message: "No hay partidos hoy para calcular el Fantasy." });
     }
 
+    // 4. Armamos un diccionario gigante con todos los bateadores que jugaron hoy
+    const statsDelDia = new Map();
+
+    data.dates[0].games.forEach((game: any) => {
+      if (game.status.statusCode === 'F' && game.boxscore) {
+        // Extraemos jugadores de ambos equipos
+        const teams = [game.boxscore.teams.home, game.boxscore.teams.away];
+        
+        teams.forEach(team => {
+          Object.values(team.players).forEach((player: any) => {
+            if (player.stats?.batting) {
+              // Guardamos las stats usando el nombre completo del jugador como llave
+              statsDelDia.set(player.person.fullName, player.stats.batting);
+            }
+          });
+        });
+      }
+    });
+
+    // 5. Traemos todos los equipos de Fantasy de tu DB
+    const allFantasyTeams = await db.fantasyTeam.findMany();
     let equiposProcesados = 0;
 
-    // 3. Procesamos cada equipo (los 9 jugadores de cada usuario)
     for (const team of allFantasyTeams) {
       if (!team.playerNames) continue;
 
-      // Separamos los 9 jugadores (vienen como "Shohei Ohtani (LAD - DH), Aaron Judge (NYY - CF)...")
       const players = team.playerNames.split(',');
-      
-      // Partimos del puntaje que ya tenían de días anteriores
-     let totalTeamPoints = team.pointsEarned || 0;
+      let puntosDeHoy = 0;
 
+      // 6. Buscamos a tus jugadores en el diccionario que armamos
       for (const playerString of players) {
         if (!playerString) continue;
 
-        // Extraemos solo el nombre para buscarlo en la API (ej: de "Shohei Ohtani (LAD - DH)" sacamos "Shohei Ohtani")
+        // Limpiamos el nombre: "Shohei Ohtani (LAD - DH)" -> "Shohei Ohtani"
         const playerName = playerString.split(' (')[0].trim();
-
-        // 4. Le preguntamos a la API de MLB cómo le fue a este jugador HOY
-        const stats = await fetchPlayerDailyStats(playerName);
+        const stats = statsDelDia.get(playerName);
 
         if (stats) {
-          // 5. 🧮 LA FÓRMULA MÁGICA DE ALFEDO
+          // 🧮 LA FÓRMULA MÁGICA DE ALFEDO
           const playerPoints = 
-            (stats.runs * 2) +       // Carreras Anotadas (R)
-            (stats.hits * 1) +       // Hits (H)
-            (stats.rbi * 1) +        // Carreras Impulsadas (RBI)
-            (stats.sb * 1) +         // Robos de Base (SB)
-            (stats.homeRuns * 3) -   // Home Runs (HR)
-            (stats.strikeouts * 1);  // Ponches (K) - ¡Resta 1!
+            (stats.runs * 2) +       
+            (stats.hits * 1) +       
+            (stats.rbi * 1) +        
+            (stats.stolenBases * 1) + // (La API le dice stolenBases, no sb) 
+            (stats.homeRuns * 3) -   
+            (stats.strikeOuts * 1);   // (La API le dice strikeOuts)
 
-          totalTeamPoints += playerPoints;
+          // Si el jugador sumó en negativo, lo dejamos en 0 para no castigar de más (Opcional, pero recomendado)
+          puntosDeHoy += playerPoints > 0 ? playerPoints : 0; 
         }
       }
 
-      // 6. Guardamos el nuevo puntaje total en la base de datos para ese usuario
-    await db.fantasyTeam.update({
-          where: { id: team.id },
-          // ✅ ACÁ ESTABA EL ERROR: Cambiamos totalPoints por pointsEarned
-          data: { pointsEarned: totalTeamPoints } 
-        });
+      // 7. Sumamos los puntos de hoy al histórico que ya tenía el equipo
+      const totalTeamPoints = (team.pointsEarned || 0) + puntosDeHoy;
+
+      await db.fantasyTeam.update({
+        where: { id: team.id },
+        data: { pointsEarned: totalTeamPoints } 
+      });
 
       equiposProcesados++;
     }

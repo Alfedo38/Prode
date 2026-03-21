@@ -1,13 +1,11 @@
 // src/app/page.tsx
 import Link from "next/link";
 import { currentUser, clerkClient } from "@clerk/nextjs/server";
-import db from "@/lib/db"; // Importamos la base de datos
+import db from "@/lib/db"; 
 
 export default async function Home() {
-  // Comprobamos si el usuario está logueado desde el servidor
   const user = await currentUser();
 
-  // === LÓGICA DE RANKING REAL ===
   const rankingData = await db.prediction.groupBy({
     by: ['userId'],
     _sum: { pointsEarned: true },
@@ -27,7 +25,9 @@ export default async function Home() {
   const topPlayers = rankingData.map(r => {
     const clerkUser = usersInfo.find(u => u.id === r.userId);
     return {
-      name: clerkUser?.firstName || clerkUser?.username || "Mánager",
+      // 🔥 CORRECCIÓN: Ahora busca primero el "username" (apodo). 
+      // Si el usuario no se puso apodo, usa el nombre, y si no, "Mánager".
+      name: clerkUser?.username || clerkUser?.firstName || "Mánager",
       points: r._sum.pointsEarned || 0
     };
   }).filter(player => player.points > 0); 
@@ -42,10 +42,9 @@ export default async function Home() {
             <p className="text-[9px] font-black uppercase text-red-500 tracking-[0.3em]">Opening Day 2026</p>
           </div>
           
-          {/* TEXTO CORREGIDO: Evitamos la palabra "Oficial" */}
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-black italic uppercase tracking-tighter leading-none text-white">
             EL PRODE <br className="hidden md:block"/> DEFINITIVO <br className="md:hidden"/>
-            DE <span className="text-blue-500">BÈISBOL</span>
+            DE <span className="text-blue-500">BÉISBOL</span>
           </h1>
           
           <p className="text-slate-400 font-bold max-w-md mx-auto md:mx-0 text-xs md:text-sm tracking-widest uppercase">
@@ -59,7 +58,6 @@ export default async function Home() {
           </div>
         </div>
         
-        {/* Decoración visual de fondo */}
         <div className="absolute top-0 right-0 w-80 h-80 bg-blue-900/20 blur-[80px] rounded-full -mr-20 -mt-20 pointer-events-none"></div>
       </section>
 
@@ -101,7 +99,6 @@ export default async function Home() {
         {/* 3. FANTASY CTA & SALAS */}
         <div className="lg:col-span-2 space-y-8">
           
-          {/* Banner de Fantasy */}
           <Link href="/fantasy" className="group block relative overflow-hidden bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 md:p-10 hover:border-emerald-500/30 transition-all shadow-xl">
             <div className="relative z-10">
               <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-black px-3 py-1 rounded-sm uppercase tracking-widest mb-4 inline-block">
@@ -119,7 +116,6 @@ export default async function Home() {
             <div className="absolute top-1/2 -right-20 -translate-y-1/2 w-64 h-64 bg-emerald-900/20 blur-[60px] rounded-full pointer-events-none"></div>
           </Link>
 
-          {/* Banner de Salas Privadas */}
           <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
             <div>
               <h3 className="text-xl font-black uppercase italic text-white mb-2">Salas <span className="text-red-500">Privadas</span></h3>

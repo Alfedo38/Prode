@@ -24,6 +24,41 @@ export default async function SalaPage({ params }: { params: Promise<{ id: strin
   const soyMiembro = sala.members.some(m => m.userId === userId);
   if (!soyMiembro) redirect("/perfil");
 
+  const esCreador = sala.ownerId === userId;
+
+  // ⚡ --- ACCIONES DE SERVIDOR (SERVER ACTIONS) --- ⚡
+  
+  // Acción para los invitados: Salir de la sala
+  const salirDeSala = async () => {
+    "use server";
+    try {
+      await db.league.update({
+        where: { id: salaId },
+        data: {
+          members: {
+            deleteMany: { userId: userId } // Borra la conexión entre el usuario y esta sala
+          }
+        }
+      });
+    } catch (error) {
+      console.error("Error al salir:", error);
+    }
+    redirect("/perfil");
+  };
+
+  // Acción para el creador: Eliminar la sala completa
+  const eliminarSala = async () => {
+    "use server";
+    try {
+      await db.league.delete({
+        where: { id: salaId }
+      }); // Eliminar la sala borra automáticamente a los miembros en cascada
+    } catch (error) {
+      console.error("Error al eliminar:", error);
+    }
+    redirect("/perfil");
+  };
+
   // 2. Buscamos los puntos de todos los miembros
   const memberIds = sala.members.map(m => m.userId);
   const predicciones = await db.prediction.findMany({
@@ -36,31 +71,51 @@ export default async function SalaPage({ params }: { params: Promise<{ id: strin
 
   // 4. Calculamos el Ranking de esta Sala (Datos puros)
   const ranking = sala.members.map(member => {
-    // Filtramos los pronósticos solo de este jugador
     const userPreds = predicciones.filter(p => p.userId === member.userId);
     const puntos = userPreds.reduce((sum, p) => sum + p.pointsEarned, 0);
     const efectividad = userPreds.length > 0 ? Math.round((puntos / (userPreds.length * 14)) * 100) : 0;
     
-    // Buscamos su perfil de Clerk
     const clerkUser = usersData.data.find(u => u.id === member.userId);
     
     return {
       id: member.userId,
-      nombre: clerkUser?.firstName || clerkUser?.username || "Mánager",
+      nombre: clerkUser?.username || clerkUser?.firstName || "Mánager",
       imagen: clerkUser?.imageUrl || "",
       puntos: puntos,
       efectividad: efectividad,
       esCreador: member.userId === sala.ownerId
     };
-  }).sort((a, b) => b.puntos - a.puntos); // Ordenamos de mayor a menor puntaje
+  }).sort((a, b) => b.puntos - a.puntos);
 
   return (
     <main className="min-h-screen p-4 md:p-8 bg-slate-950 text-slate-100">
       <div className="max-w-4xl mx-auto space-y-8">
         
-        <Link href="/perfil" className="inline-flex items-center gap-2 text-slate-500 hover:text-blue-400 font-bold uppercase text-xs tracking-widest transition-colors">
-          <span>←</span> Volver a mi perfil
-        </Link>
+        {/* BARRA SUPERIOR: Volver y Botones de Acción */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <Link href="/perfil" className="inline-flex items-center gap-2 text-slate-500 hover:text-blue-400 font-bold uppercase text-xs tracking-widest transition-colors">
+            <span>←</span> Volver a mi perfil
+          </Link>
+
+          {/* Renderizamos el botón correspondiente según el rol */}
+          <form>
+            {esCreador ? (
+              <button 
+                formAction={eliminarSala}
+                className="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/30 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-2"
+              >
+                🗑️ Eliminar Sala
+              </button>
+            ) : (
+              <button 
+                formAction={salirDeSala}
+                className="bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white border border-slate-700 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-2"
+              >
+                🚪 Salir de la Sala
+              </button>
+            )}
+          </form>
+        </div>
 
         {/* --- CABECERA DE LA SALA --- */}
         <div className="bg-slate-900 border border-slate-800 rounded-[2rem] p-8 flex flex-col md:flex-row items-center justify-between shadow-2xl relative overflow-hidden">
@@ -78,7 +133,7 @@ export default async function SalaPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
 
-        {/* --- TABLA DE POSICIONES (DATOS PUROS) --- */}
+        {/* --- TABLA DE POSICIONES --- */}
         <div className="bg-slate-900 border border-slate-800 rounded-[2rem] overflow-hidden shadow-xl">
           <div className="p-6 border-b border-slate-800/50 bg-slate-950/30 flex justify-between items-center">
             <h2 className="text-xl font-black uppercase italic text-white flex items-center gap-2">
