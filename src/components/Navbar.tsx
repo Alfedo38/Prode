@@ -27,7 +27,7 @@ export default function Navbar() {
             <span className="text-white font-black text-2xl italic leading-none mt-[-2px]">P</span>
           </div>
           <span className="text-2xl font-black italic uppercase tracking-tighter text-white">
-            PRODE<span className="text-red-500">MLB</span>
+            PRODE<span className="text-red-500">BÈISBOL</span>
           </span>
         </Link>
 

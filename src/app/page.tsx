@@ -45,7 +45,7 @@ export default async function Home() {
           {/* TEXTO CORREGIDO: Evitamos la palabra "Oficial" */}
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-black italic uppercase tracking-tighter leading-none text-white">
             EL PRODE <br className="hidden md:block"/> DEFINITIVO <br className="md:hidden"/>
-            DE LA <span className="text-blue-500">Baseball</span>
+            DE <span className="text-blue-500">BÈISBOL</span>
           </h1>
           
           <p className="text-slate-400 font-bold max-w-md mx-auto md:mx-0 text-xs md:text-sm tracking-widest uppercase">
