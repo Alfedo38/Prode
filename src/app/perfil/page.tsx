@@ -40,10 +40,23 @@ export default async function PerfilPage() {
   const puntosPosibles = misPredicciones.length * 14; 
   const efectividad = puntosPosibles > 0 ? Math.round((puntosTotales / puntosPosibles) * 100) : 0;
 
-  // 📅 Agrupar historial por Fecha / Jornada
+  // 📅 MEJORA: Agrupar historial por "Jornada X" en base a la semana
+  const OPENING_DAY = new Date("2026-03-26T00:00:00Z");
+
   const historialPorFecha = misPredicciones.reduce((acc: any, pred) => {
-    const date = new Date(pred.series.startDate);
-    const fechaClave = `Jornada del ${date.getDate()} de ${date.toLocaleDateString('es-AR', { month: 'short' })}`;
+    const gameDate = new Date(pred.series.startDate);
+    
+    // Calculamos la diferencia en milisegundos y lo pasamos a días
+    const diffTime = Math.abs(gameDate.getTime() - OPENING_DAY.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+    
+    // Dividimos por 7 días a la semana y redondeamos para arriba para sacar el número de Jornada
+    const numJornada = Math.ceil((diffDays === 0 ? 1 : diffDays) / 7);
+    
+    // Si la fecha es anterior al Opening Day, la forzamos a Jornada 1
+    const finalJornada = gameDate < OPENING_DAY ? 1 : numJornada;
+
+    const fechaClave = `JORNADA ${finalJornada}`;
     
     if (!acc[fechaClave]) {
       acc[fechaClave] = { puntosTotales: 0, boletas: [] };
@@ -158,6 +171,7 @@ export default async function PerfilPage() {
                         <div className="flex items-center gap-4">
                           <span className="text-blue-500 font-black text-xl group-open:rotate-90 transition-transform duration-300">▶</span>
                           <div>
+                            {/* ACÁ AHORA VA A DECIR "JORNADA X" */}
                             <p className="font-black text-lg text-white uppercase">{fecha}</p>
                             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">
                               {jornada.boletas.length} Series Pronosticadas
