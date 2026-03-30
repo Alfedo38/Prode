@@ -32,6 +32,9 @@ model Prediction {
   pitcherPicks      String?  // ✅ Ej: "SI,NO,SI" (Abridor gana)
   totalRuns         Int      @default(0) 
   pointsEarned      Int      @default(0) 
+  
+  pointsDetail      Json?    // 🧾 NUEVO: EL RECIBO DE PUNTOS DETALLADO
+  
   createdAt         DateTime @default(now())
 
   series            Series   @relation(fields: [seriesId], references: [id])
@@ -61,12 +64,12 @@ model League {
 }
 
 model LeagueMember {
-  id          String   @id @default(cuid())
-  leagueId    String
-  userId      String   // El userId (Clerk) del jugador que se unió
-  joinedAt    DateTime @default(now())
+  id        String   @id @default(cuid())
+  leagueId  String
+  userId    String   // El userId (Clerk) del jugador que se unió
+  joinedAt  DateTime @default(now())
 
-  league      League   @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  league    League   @relation(fields: [leagueId], references: [id], onDelete: Cascade)
 
   // 🛡️ Regla de oro: Un jugador no puede unirse dos veces a la misma sala
   @@unique([leagueId, userId])

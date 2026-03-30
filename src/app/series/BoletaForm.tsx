@@ -77,18 +77,16 @@ export default function BoletaForm({ seriesList, userPredictions }: { seriesList
         const res = calculate(s.id, s.awayTeam, s.homeTeam);
         const isOpen = expandedId === s.id;
         
-        // Buscamos si el usuario ya votó esto en la base de datos
         const dbPrediction = userPredictions.find(p => p.series?.mlbSeriesId === s.id || p.seriesId === s.id);
         const isSavedInDB = !!dbPrediction;
         
-        // 🚨 LÓGICA ANTI-TRAMPA: ¿Ya empezó el primer partido?
         const isLocked = new Date() > new Date(s.firstGameTime);
 
-        // 🟢 PUNTOS OBTENIDOS (Si el cron job ya los procesó)
         const puntosGanados = dbPrediction?.pointsEarned || 0;
         
-        // Para saber si ya se evaluó, comprobamos si isLocked es true y si pasó la fecha final.
-        // Si tiene puntos > 0 seguro se evaluó. Si tiene 0 pero está bloqueado, puede que haya errado todo.
+        // 🧾 NUEVO: Extraemos el recibo detallado de la base de datos (si existe)
+        const detail = dbPrediction?.pointsDetail as any;
+
         const isEvaluated = isSavedInDB && isLocked && new Date() > new Date(new Date(s.firstGameTime).getTime() + (3 * 24 * 60 * 60 * 1000));
 
         return (
@@ -100,14 +98,12 @@ export default function BoletaForm({ seriesList, userPredictions }: { seriesList
             >
               <div className="flex-1 flex flex-col justify-center px-8 bg-slate-950/50 rounded-3xl h-32 border border-slate-800/30 relative mt-4 md:mt-0">
                 
-                {/* Etiqueta de Candado si ya empezó */}
                 {isLocked && !isEvaluated && (
                   <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-red-500/20 text-red-500 text-[8px] font-black px-3 py-1 rounded-b-lg uppercase tracking-widest border-x border-b border-red-500/30">
                     🔒 Apuestas Cerradas
                   </div>
                 )}
                 
-                {/* Etiqueta de Partido Terminado */}
                 {isEvaluated && (
                   <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-slate-800 text-slate-400 text-[8px] font-black px-3 py-1 rounded-b-lg uppercase tracking-widest border-x border-b border-slate-700">
                     🏁 Serie Finalizada
@@ -130,7 +126,6 @@ export default function BoletaForm({ seriesList, userPredictions }: { seriesList
                   </div>
                 </div>
 
-                {/* 📊 Pizarra de Estadísticas REALES */}
                 <div className="mt-3 pt-3 border-t border-slate-800/50 flex justify-center gap-6 pb-2 md:pb-0">
                   <div className="text-center">
                     <p className="text-[8px] text-slate-500 uppercase tracking-widest font-black mb-1">
@@ -164,17 +159,14 @@ export default function BoletaForm({ seriesList, userPredictions }: { seriesList
                 </div>
               </div>
 
-              {/* TARJETA DERECHA: RESULTADOS O PRONÓSTICO */}
               <div className={`w-full md:w-64 h-32 rounded-[2rem] flex flex-col items-center justify-center transition-all duration-500 relative overflow-hidden mt-2 md:mt-0 ${res ? (isEvaluated ? 'bg-slate-900 border border-slate-800' : 'bg-blue-600 shadow-[0_0_25px_rgba(37,99,235,0.3)]') : 'bg-slate-800/50'}`}>
                 
-                {/* Cartelito de "Guardado" */}
                 {isSavedInDB && !isEvaluated && (
                   <div className="absolute top-0 right-0 bg-blue-400 text-[8px] font-black px-3 py-1 rounded-bl-xl uppercase text-blue-900 shadow-sm z-10">
                     Guardado
                   </div>
                 )}
 
-                {/* 🟢 CARTELITO DE PUNTOS GANADOS (Solo si ya se evaluó) */}
                 {isEvaluated && (
                   <div className={`absolute top-0 right-0 text-[10px] font-black px-4 py-1.5 rounded-bl-xl uppercase shadow-sm z-10 ${puntosGanados > 0 ? 'bg-emerald-500 text-emerald-950' : 'bg-red-500/20 text-red-400 border-b border-l border-red-500/30'}`}>
                     {puntosGanados > 0 ? `🔥 +${puntosGanados} PTS` : '❌ 0 PTS'}
@@ -196,13 +188,20 @@ export default function BoletaForm({ seriesList, userPredictions }: { seriesList
               </div>
             </div>
 
-            {/* DESPLEGABLE CON LOS 3 JUEGOS */}
             {isOpen && (
               <div className="p-6 bg-slate-950/50 border-t border-slate-800/50 animate-in fade-in slide-in-from-top-4 duration-500">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   {[0, 1, 2].map((idx) => {
-                    // Verificamos si este juego específico ya pasó para bloquearlo individualmente
                     const isGameLocked = s.games && s.games[idx] ? new Date() > new Date(s.games[idx].gameDate) : isLocked;
+                    
+                    // 🧾 LECTURA DEL RECIBO EXACTO PARA ESTE PARTIDO
+                    const gameDetail = detail?.games?.[idx];
+                    const ptsGanador = gameDetail?.ganador || 0;
+                    const ptsPitcher = gameDetail?.pitcher || 0;
+
+                    // Si detail existe, usamos la info exacta. Si no (boletas viejas), usamos fallback.
+                    const hasGanadorHit = gameDetail ? ptsGanador > 0 : (puntosGanados > 0);
+                    const hasPitcherHit = gameDetail ? ptsPitcher > 0 : (puntosGanados > 0);
 
                     return (
                       <div key={idx} className="bg-slate-900 border border-slate-800/50 rounded-[2rem] p-6 space-y-5 shadow-inner relative">
@@ -217,16 +216,13 @@ export default function BoletaForm({ seriesList, userPredictions }: { seriesList
                         
                         <div className="flex gap-3 justify-center relative z-20">
                           {["V", "L"].map(v => {
-                            // Si el juego ya está evaluado y ganaste puntos, pintamos de verde tu acierto. 
-                            // (Nota: Esto es visual, asume que si sacaste puntos en la serie es porque algo acertaste. 
-                            // Para precisión exacta requeriría que el Cron guarde un array de resultados reales, pero esto da buen feedback).
                             const isSelected = formData.picks[s.id][idx] === v;
                             let buttonStyle = 'bg-slate-950 text-slate-700 hover:text-slate-300 border border-slate-800 disabled:opacity-50';
                             
                             if (isSelected) {
-                               buttonStyle = isEvaluated && puntosGanados > 0 
+                               buttonStyle = isEvaluated && hasGanadorHit 
                                   ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-400 scale-110 shadow-[0_0_15px_rgba(16,185,129,0.3)]' 
-                                  : isEvaluated && puntosGanados === 0
+                                  : isEvaluated && !hasGanadorHit
                                   ? 'bg-red-500/10 border-red-500/30 text-red-500/50 scale-100'
                                   : 'bg-blue-600 shadow-[0_0_20px_rgba(37,99,235,0.5)] text-white scale-110';
                             }
@@ -254,9 +250,9 @@ export default function BoletaForm({ seriesList, userPredictions }: { seriesList
                                let btnStyle = 'bg-slate-950 text-slate-600 hover:text-slate-300 border border-slate-800 disabled:opacity-50';
                                
                                if (isSelected) {
-                                  btnStyle = isEvaluated && puntosGanados > 0 
+                                  btnStyle = isEvaluated && hasPitcherHit 
                                     ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
-                                    : isEvaluated && puntosGanados === 0
+                                    : isEvaluated && !hasPitcherHit
                                     ? 'bg-red-500/10 border-red-500/30 text-red-500/50'
                                     : 'bg-amber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.4)] scale-105';
                                }
@@ -275,10 +271,35 @@ export default function BoletaForm({ seriesList, userPredictions }: { seriesList
                           </div>
                         </div>
 
+                        {/* 🧾 NUEVO: TICKET DE PUNTOS POR PARTIDO (Solo se muestra si la serie terminó y el recibo existe) */}
+                        {isEvaluated && detail && (
+                          <div className="flex justify-between items-center mt-4 pt-3 border-t border-slate-800/50">
+                            <span className={`text-[9px] font-black uppercase tracking-widest ${ptsGanador > 0 ? 'text-emerald-400' : 'text-red-400/50'}`}>
+                              {ptsGanador > 0 ? `✓ Partido: +${ptsGanador}` : '❌ Partido: 0'}
+                            </span>
+                            <span className={`text-[9px] font-black uppercase tracking-widest ${ptsPitcher > 0 ? 'text-emerald-400' : 'text-red-400/50'}`}>
+                              {ptsPitcher > 0 ? `✓ Abridor: +${ptsPitcher}` : '❌ Abridor: 0'}
+                            </span>
+                          </div>
+                        )}
+
                       </div>
                     )
                   })}
                 </div>
+
+                {/* 🧾 NUEVO: TICKET PLENO DE SERIE */}
+                {isEvaluated && detail && (detail.serie.winner > 0 || detail.serie.exact > 0) && (
+                  <div className="mt-6 flex justify-center">
+                     <div className="bg-emerald-900/20 border border-emerald-500/30 px-6 py-3 rounded-xl flex items-center gap-3 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+                       <span className="text-xl">🔥</span>
+                       <div>
+                         <p className="text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em]">Bonus de Serie Acertada</p>
+                         <p className="text-emerald-200 text-xs font-bold text-center">+{detail.serie.winner + detail.serie.exact} PTS</p>
+                       </div>
+                     </div>
+                  </div>
+                )}
 
                 {!isLocked && (
                   <button 

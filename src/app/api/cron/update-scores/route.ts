@@ -72,13 +72,25 @@ export async function GET(request: Request) {
       if (sr && sr.games.length > 0) {
         let earnedPoints = 0;
 
+        // 🧾 NUEVO: Creamos una "libreta" en blanco para anotar los detalles de esta boleta
+        let detail = {
+          serie: { winner: 0, exact: 0 },
+          games: [] as { ganador: number, pitcher: number }[]
+        };
+
         // Reglas de Serie
         if (sr.homeWins + sr.awayWins === 3 || sr.homeWins === 2 || sr.awayWins === 2) {
           const realWinnerId = sr.awayWins > sr.homeWins ? "AWAY" : "HOME";
           const realScore = sr.awayWins > sr.homeWins ? `${sr.awayWins}-${sr.homeWins}` : `${sr.homeWins}-${sr.awayWins}`;
 
-          if (pred.predictedWinnerId === realWinnerId) earnedPoints += 1; 
-          if (pred.predictedScore === realScore) earnedPoints += 3;       
+          if (pred.predictedWinnerId === realWinnerId) {
+            earnedPoints += 1; 
+            detail.serie.winner = 1; // 📝 Anotamos que sumó 1 pto por ganador de serie
+          }
+          if (pred.predictedScore === realScore) {
+            earnedPoints += 3;       
+            detail.serie.exact = 3;  // 📝 Anotamos que sumó 3 ptos por resultado exacto
+          }
         }
 
         // Reglas de Partidos Individuales
@@ -86,14 +98,29 @@ export async function GET(request: Request) {
         const userPitchers = pred.pitcherPicks ? pred.pitcherPicks.split(',') : [];
 
         sr.games.forEach((gameResult: any, index: number) => {
-          if (userPicks[index] === gameResult.winnerPick) earnedPoints += 1;
-          if (userPitchers[index] === gameResult.didSPWin) earnedPoints += 3;
+          let ptsGanador = 0;
+          let ptsPitcher = 0;
+
+          if (userPicks[index] === gameResult.winnerPick) {
+            earnedPoints += 1;
+            ptsGanador = 1; // 📝 Anotamos 1 pto para este partido
+          }
+          if (userPitchers[index] === gameResult.didSPWin) {
+            earnedPoints += 3;
+            ptsPitcher = 3; // 📝 Anotamos 3 ptos de pitcher para este partido
+          }
+
+          // 📝 Guardamos el detalle de este partido específico en la lista
+          detail.games.push({ ganador: ptsGanador, pitcher: ptsPitcher });
         });
 
-        // Guardamos el puntaje total recalculado
+        // Guardamos el puntaje total recalculado + el recibo
         await db.prediction.update({
           where: { id: pred.id },
-          data: { pointsEarned: earnedPoints }
+          data: { 
+            pointsEarned: earnedPoints,
+            pointsDetail: detail // 💾 Guardamos la libreta en la base de datos
+          }
         });
 
         prediccionesProcesadas++;
