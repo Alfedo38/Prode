@@ -5,6 +5,9 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 
+// 🔥 ESTA ES LA LÍNEA MÁGICA: Obliga a recargar los datos en vivo siempre
+export const dynamic = "force-dynamic";
+
 export default async function SalaPage({ params }: { params: Promise<{ id: string }> }) {
   const { userId } = await auth();
   if (!userId) redirect("/");
@@ -26,9 +29,7 @@ export default async function SalaPage({ params }: { params: Promise<{ id: strin
 
   const esCreador = sala.ownerId === userId;
 
-  // ⚡ --- ACCIONES DE SERVIDOR (SERVER ACTIONS) --- ⚡
-  
-  // Acción para los invitados: Salir de la sala
+  // ⚡ --- ACCIONES DE SERVIDOR --- ⚡
   const salirDeSala = async () => {
     "use server";
     try {
@@ -36,7 +37,7 @@ export default async function SalaPage({ params }: { params: Promise<{ id: strin
         where: { id: salaId },
         data: {
           members: {
-            deleteMany: { userId: userId } // Borra la conexión entre el usuario y esta sala
+            deleteMany: { userId: userId } 
           }
         }
       });
@@ -46,13 +47,12 @@ export default async function SalaPage({ params }: { params: Promise<{ id: strin
     redirect("/perfil");
   };
 
-  // Acción para el creador: Eliminar la sala completa
   const eliminarSala = async () => {
     "use server";
     try {
       await db.league.delete({
         where: { id: salaId }
-      }); // Eliminar la sala borra automáticamente a los miembros en cascada
+      }); 
     } catch (error) {
       console.error("Error al eliminar:", error);
     }
@@ -69,7 +69,7 @@ export default async function SalaPage({ params }: { params: Promise<{ id: strin
   const client = await clerkClient();
   const usersData = await client.users.getUserList({ userId: memberIds });
 
-  // 4. Calculamos el Ranking de esta Sala (Datos puros)
+  // 4. Calculamos el Ranking de esta Sala
   const ranking = sala.members.map(member => {
     const userPreds = predicciones.filter(p => p.userId === member.userId);
     const puntos = userPreds.reduce((sum, p) => sum + p.pointsEarned, 0);
@@ -91,13 +91,12 @@ export default async function SalaPage({ params }: { params: Promise<{ id: strin
     <main className="min-h-screen p-4 md:p-8 bg-slate-950 text-slate-100">
       <div className="max-w-4xl mx-auto space-y-8">
         
-        {/* BARRA SUPERIOR: Volver y Botones de Acción */}
+        {/* BARRA SUPERIOR */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <Link href="/perfil" className="inline-flex items-center gap-2 text-slate-500 hover:text-blue-400 font-bold uppercase text-xs tracking-widest transition-colors">
             <span>←</span> Volver a mi perfil
           </Link>
 
-          {/* Renderizamos el botón correspondiente según el rol */}
           <form>
             {esCreador ? (
               <button 
@@ -117,7 +116,7 @@ export default async function SalaPage({ params }: { params: Promise<{ id: strin
           </form>
         </div>
 
-        {/* --- CABECERA DE LA SALA --- */}
+        {/* --- CABECERA --- */}
         <div className="bg-slate-900 border border-slate-800 rounded-[2rem] p-8 flex flex-col md:flex-row items-center justify-between shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/5 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
           
@@ -147,7 +146,6 @@ export default async function SalaPage({ params }: { params: Promise<{ id: strin
                 key={jugador.id} 
                 className={`flex items-center gap-4 p-4 md:p-6 transition-colors ${jugador.id === userId ? 'bg-blue-600/10' : 'hover:bg-slate-800/30'}`}
               >
-                {/* Posición */}
                 <div className="w-8 md:w-12 text-center">
                   <span className={`text-xl md:text-2xl font-black italic ${
                     index === 0 ? 'text-amber-500' : 
@@ -158,7 +156,6 @@ export default async function SalaPage({ params }: { params: Promise<{ id: strin
                   </span>
                 </div>
 
-                {/* Avatar y Nombre */}
                 <div className="flex-1 flex items-center gap-4">
                   {jugador.imagen ? (
                     <Image src={jugador.imagen} alt={jugador.nombre} width={48} height={48} className="rounded-xl border border-slate-700 shadow-md" />
@@ -177,7 +174,6 @@ export default async function SalaPage({ params }: { params: Promise<{ id: strin
                   </div>
                 </div>
 
-                {/* Puntos */}
                 <div className="text-right">
                   <p className="text-2xl md:text-3xl font-black italic text-blue-500 drop-shadow-sm">{jugador.puntos}</p>
                   <p className="text-[9px] font-black text-blue-200 uppercase tracking-widest mt-0.5">PTS</p>

@@ -1,11 +1,27 @@
 // src/lib/mlb.ts
 export async function fetchWeekendSeries() {
-  const openingDay = new Date("2026-03-26T12:00:00Z"); 
-  const start = openingDay.toISOString().split('T')[0];
-  const endLimit = new Date(openingDay);
-  endLimit.setDate(openingDay.getDate() + 5);
-  const end = endLimit.toISOString().split('T')[0];
+  // 📅 LÓGICA DINÁMICA: SOLO FINES DE SEMANA (Jueves a Domingo)
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0 es Domingo, 1 es Lunes... 4 es Jueves.
+  
+  // Calculamos a cuántos días estamos del Jueves de esta semana
+  let daysToThursday = 4 - dayOfWeek;
+  if (dayOfWeek === 0) {
+    // Si hoy es Domingo, el Jueves fue hace 3 días atrás
+    daysToThursday = -3; 
+  }
+  
+  // Fijamos el inicio de nuestra búsqueda en el JUEVES
+  const startOfWeekend = new Date(today);
+  startOfWeekend.setDate(today.getDate() + daysToThursday);
+  const start = startOfWeekend.toISOString().split('T')[0];
 
+  // Fijamos el final de nuestra búsqueda en el DOMINGO (3 días después del Jueves)
+  const endOfWeekend = new Date(startOfWeekend);
+  endOfWeekend.setDate(startOfWeekend.getDate() + 3);
+  const end = endOfWeekend.toISOString().split('T')[0];
+
+  // Buscamos los partidos de la MLB estrictamente en ese bloque de Jue a Dom
   const url = `https://statsapi.mlb.com/api/v1/schedule/games/?sportId=1&startDate=${start}&endDate=${end}&gameType=R&hydrate=probablePitcher`;
 
   try {
@@ -26,14 +42,13 @@ export async function fetchWeekendSeries() {
             mlbSeriesId: seriesKey,
             homeTeam: game.teams.home.team.name,
             awayTeam: game.teams.away.team.name,
-            homeId: game.teams.home.team.id, // ✅ AGREGADO
-            awayId: game.teams.away.team.id, // ✅ AGREGADO
+            homeId: game.teams.home.team.id,
+            awayId: game.teams.away.team.id,
             homeAbbr: game.teams.home.team.abbreviation,
             awayAbbr: game.teams.away.team.abbreviation,
             firstGameTime: game.gameDate, 
             gameCount: 0,
             games: [],
-            // 📊 ACA AGREGAMOS LOS RÉCORDS REALES DE LA API
             homeRecord: {
               wins: game.teams.home.leagueRecord?.wins || 0,
               losses: game.teams.home.leagueRecord?.losses || 0,
@@ -65,6 +80,7 @@ export async function fetchWeekendSeries() {
     });
 
     return Array.from(seriesMap.values())
+      // 🛡️ FILTRO ESTRICTO: Solo devolvemos las series que tengan EXACTAMENTE 3 partidos
       .filter(s => s.gameCount === 3)
       .sort((a, b) => new Date(a.firstGameTime).getTime() - new Date(b.firstGameTime).getTime());
 

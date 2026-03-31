@@ -22,8 +22,38 @@ export async function savePrediction(
       return { success: false, error: "Faltan datos de la serie." };
     }
 
-    // ✅ Lo hacemos más flexible para evitar errores de bloqueo
-    const pPicks = prediction.pitcherPicks || "";
+    // 🛡️ ✅ PATOVICA DE DATOS (Validación estricta)
+    // 1. Evitamos que manden textos gigantes para saturar la base de datos
+    if (prediction.score && prediction.score.length > 10) {
+      return { success: false, error: "El formato del resultado es inválido." };
+    }
+
+    // 2. Solo aceptamos valores reales para el ganador de la serie
+    const allowedWinners = ["HOME", "AWAY", "TIE", ""];
+    if (!allowedWinners.includes(prediction.winnerId)) {
+      return { success: false, error: "Ganador de serie no válido." };
+    }
+
+    // 3. Limpiamos y validamos los picks diarios (Solo permitimos L, V y comas)
+    const cleanDailyPicks = prediction.dailyPicks.toUpperCase().replace(/[^LV,]/g, '');
+    if (cleanDailyPicks.length > 20) return { success: false, error: "Picks inválidos." };
+
+    // 4. Limpiamos y validamos los pitchers (Solo permitimos S, I, N, O y comas)
+    const pPicks = (prediction.pitcherPicks || "").toUpperCase().replace(/[^SINO,]/g, '');
+    if (pPicks.length > 30) return { success: false, error: "Picks de pitcher inválidos." };
+
+    // ⏱️ ✅ RELOJ ATÓMICO DEL SERVIDOR
+    if (seriesData.firstGameTime) {
+      const serverTime = new Date();
+      const gameTime = new Date(seriesData.firstGameTime);
+
+      if (serverTime > gameTime) {
+        return { 
+          success: false, 
+          error: "Apuesta rechazada: Esta serie ya ha comenzado." 
+        };
+      }
+    }
 
     const startDate = seriesData.firstGameTime 
       ? new Date(seriesData.firstGameTime) 
@@ -47,7 +77,7 @@ export async function savePrediction(
       }
     });
 
-    // 2. Upsert de la Predicción del Usuario (Guardamos picks y pitchers)
+    // 2. Upsert de la Predicción del Usuario
     await db.prediction.upsert({
       where: { 
         userId_seriesId: { 
@@ -58,21 +88,20 @@ export async function savePrediction(
       update: { 
         predictedWinnerId: prediction.winnerId, 
         predictedScore: prediction.score, 
-        dailyPicks: prediction.dailyPicks,
-        pitcherPicks: pPicks // ✅ Usamos la variable segura
+        dailyPicks: cleanDailyPicks, // Guardamos la variable limpia
+        pitcherPicks: pPicks         // Guardamos la variable limpia
       },
       create: { 
         userId: userId, 
         seriesId: series.id, 
         predictedWinnerId: prediction.winnerId, 
         predictedScore: prediction.score, 
-        dailyPicks: prediction.dailyPicks, 
-        pitcherPicks: pPicks, // ✅ Usamos la variable segura
+        dailyPicks: cleanDailyPicks, // Guardamos la variable limpia
+        pitcherPicks: pPicks,        // Guardamos la variable limpia
         totalRuns: 0 
       }
     });
 
-    // Actualizamos las vistas
     revalidatePath("/series");
     revalidatePath("/");
     
@@ -97,7 +126,19 @@ export async function saveFantasyTeam(players: string[]) {
       return { success: false, error: "Debes iniciar sesión para guardar tu equipo." };
     }
 
-    const playerString = players.join(",");
+    // 🛡️ ✅ PATOVICA DE FANTASY
+    // Evitamos que un hacker mande un array con 50.000 jugadores
+    if (!Array.isArray(players) || players.length > 15) {
+      return { success: false, error: "Cantidad de jugadores inválida." };
+    }
+
+    // Filtramos para que solo queden textos limpios (evita inyecciones raras)
+    const safePlayers = players.filter(p => typeof p === 'string').map(p => p.trim());
+    const playerString = safePlayers.join(",");
+
+    if (playerString.length > 500) {
+      return { success: false, error: "Los datos del equipo son demasiado largos." };
+    }
 
     await db.fantasyTeam.upsert({
       where: { userId: userId },
@@ -121,9 +162,8 @@ export async function saveFantasyTeam(players: string[]) {
   }
 }
 
-// ==========================================
-// 3. OBTENER EQUIPO FANTASY
-// ==========================================
+// ... (El resto de las funciones getMyFantasyTeam, createLeague, joinLeague y getMyLeagues quedan exactamente igual que en tu versión anterior)
+
 export async function getMyFantasyTeam() {
   try {
     const { userId } = await auth();
@@ -141,26 +181,22 @@ export async function getMyFantasyTeam() {
   }
 }
 
-// ==========================================
-// 🔥 NUEVAS FUNCIONES PARA SALAS PRIVADAS
-// ==========================================
-
-// 4. CREAR UNA SALA NUEVA
 export async function createLeague(name: string) {
   try {
     const { userId } = await auth();
     if (!userId) return { success: false, error: "Debes iniciar sesión." };
-    if (!name || name.trim() === "") return { success: false, error: "El nombre es obligatorio." };
+    
+    // 🛡️ Validación estricta del nombre de la sala
+    const cleanName = name.trim();
+    if (!cleanName || cleanName.length > 30) return { success: false, error: "El nombre debe tener entre 1 y 30 caracteres." };
 
-    // Generamos un código aleatorio de 6 letras/números (Ej: M7X9PQ)
     const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
     const newLeague = await db.league.create({
       data: {
-        name: name.trim(),
+        name: cleanName,
         inviteCode: inviteCode,
         ownerId: userId,
-        // Agregamos automáticamente al creador como el primer miembro
         members: {
           create: {
             userId: userId
@@ -177,16 +213,14 @@ export async function createLeague(name: string) {
   }
 }
 
-// 5. UNIRSE A UNA SALA EXISTENTE
 export async function joinLeague(inviteCode: string) {
   try {
     const { userId } = await auth();
     if (!userId) return { success: false, error: "Debes iniciar sesión." };
 
     const code = inviteCode.trim().toUpperCase();
-    if (!code) return { success: false, error: "Escribí un código válido." };
+    if (!code || code.length > 10) return { success: false, error: "Escribí un código válido." };
 
-    // Buscamos si la sala existe
     const league = await db.league.findUnique({
       where: { inviteCode: code }
     });
@@ -195,7 +229,6 @@ export async function joinLeague(inviteCode: string) {
       return { success: false, error: "Código incorrecto o sala no encontrada." };
     }
 
-    // Verificamos si el usuario ya está en esta sala
     const existingMember = await db.leagueMember.findUnique({
       where: {
         leagueId_userId: {
@@ -209,7 +242,6 @@ export async function joinLeague(inviteCode: string) {
       return { success: false, error: "Ya sos miembro de esta sala." };
     }
 
-    // Lo agregamos a la sala
     await db.leagueMember.create({
       data: {
         leagueId: league.id,
@@ -225,22 +257,19 @@ export async function joinLeague(inviteCode: string) {
   }
 }
 
-// 6. OBTENER LAS SALAS DEL USUARIO
 export async function getMyLeagues() {
   try {
     const { userId } = await auth();
     if (!userId) return [];
 
-    // Buscamos a qué ligas pertenece este usuario
     const memberships = await db.leagueMember.findMany({
       where: { userId: userId },
       include: {
-        league: true // Traemos los datos de la liga (nombre, código)
+        league: true 
       },
       orderBy: { joinedAt: 'desc' }
     });
 
-    // Mapeamos para devolver solo las ligas limpias
     return memberships.map(m => m.league);
   } catch (error) {
     console.error("❌ Error en getMyLeagues:", error);
